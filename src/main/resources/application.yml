@@ -7,7 +7,7 @@ spring:
     locale: zh_CN
     time-zone: "Asia/Shanghai"
   config:
-    import: optional:classpath:github-token.properties[.properties]
+    import: optional:classpath:github-stars-summary.yaml[.yaml]
 logging:
   level:
     pro.chenggang: DEBUG

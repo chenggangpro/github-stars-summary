@@ -1,0 +1,3 @@
+github-stars-summary:
+  github-token: YOUR_GITHUB_TOKEN
+  ignore-repo-pattern: OPTIONAL
