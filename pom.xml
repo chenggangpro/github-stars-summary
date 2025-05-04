@@ -98,16 +98,17 @@
             <artifactId>commons-lang3</artifactId>
             <version>${commons-lang3.version}</version>
         </dependency>
-
-
-        <!-- Tests -->
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-resolver-dns-native-macos</artifactId>
-            <scope>test</scope>
+            <optional>true</optional>
+            <scope>runtime</scope>
             <classifier>osx-aarch_64</classifier>
             <version>${netty-resolver-dns-native-macos.version}</version>
         </dependency>
+
+
+        <!-- Tests -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
