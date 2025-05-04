@@ -110,7 +110,10 @@ public class GitHubApi {
                 })
                 .flatMap(responseEntity -> {
                     if (!responseEntity.getStatusCode().is2xxSuccessful()) {
-                        log.warn("Github readme content was not found in repo {}", uri);
+                        log.warn("Github readme content was not found in repo {}, response status: {}",
+                                uri,
+                                responseEntity.getStatusCode()
+                        );
                         return Mono.empty();
                     }
                     return Mono.justOrEmpty(responseEntity.getBody());
