@@ -1,3 +1,14 @@
 github-stars-summary:
   github-token: YOUR_GITHUB_TOKEN
   ignore-repo-pattern: OPTIONAL
+  llm-url: LLM_URL(http://localhost:11434/api/generate -> Ollama)
+  llm-api-key: OPTIONAL
+  llm-model: LLM_MODEL_NAME(qwen3:30b-a3b)
+  llm-prompt: >
+    this
+    is
+    multiple
+    lines
+    prompt
+    for
+    summary
