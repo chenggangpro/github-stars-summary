@@ -49,3 +49,6 @@ build/
 
 ### Log ###
 logs/
+
+## github-token ###
+github-token.properties
