@@ -9,8 +9,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClient.RequestHeadersSpec;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.web.util.UriComponentsBuilder;
+import pro.chenggang.project.github.stars.summary.github.dto.ContentTree;
 import pro.chenggang.project.github.stars.summary.github.dto.StarsRepository;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -92,6 +95,25 @@ public class GitHubApi {
                                 String actualLink = StringUtils.substringBetween(nextLink, "<", ">");
                                 return pagingStarsRepository(URI.create(actualLink));
                             }));
+                });
+    }
+
+    public Mono<ContentTree> getReadmeContent(URI uri) {
+        return webClient.get()
+                .uri(UriComponentsBuilder.fromUri(uri)
+                        .path("/contents/README.md")
+                        .build()
+                        .toUri()
+                )
+                .retrieve()
+                .toEntity(new ParameterizedTypeReference<ContentTree>() {
+                })
+                .flatMap(responseEntity -> {
+                    if (!responseEntity.getStatusCode().is2xxSuccessful()) {
+                        log.warn("Github readme content was not found in repo {}", uri);
+                        return Mono.empty();
+                    }
+                    return Mono.justOrEmpty(responseEntity.getBody());
                 });
     }
 
