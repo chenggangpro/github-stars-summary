@@ -20,6 +20,4 @@ import org.springframework.boot.test.context.SpringBootTest;
 @SpringBootTest
 public class GithubStarsSummaryApplicationTests {
 
-    protected static final String GITHUB_TOKEN = "YOUR_GITHUB_TOKEN";
-
 }

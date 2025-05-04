@@ -27,6 +27,8 @@ import reactor.core.publisher.Hooks;
 @SpringBootApplication(exclude = {ReactiveWebServerFactoryAutoConfiguration.class})
 public class GithubStarsSummaryApplication {
 
+    public static final String GITHUB_TOKEN = "YOUR_GITHUB_TOKEN";
+
     public static void main(String[] args) {
         Hooks.enableAutomaticContextPropagation();
         SpringApplication.run(GithubStarsSummaryApplication.class, args);
