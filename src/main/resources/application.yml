@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: connect-example-client
+  flyway:
+    enabled: false
+  jackson:
+    locale: zh_CN
+    time-zone: "Asia/Shanghai"
+logging:
+  level:
+    pro.chenggang: DEBUG
