@@ -6,6 +6,8 @@ spring:
   jackson:
     locale: zh_CN
     time-zone: "Asia/Shanghai"
+  config:
+    import: optional:classpath:github-token.properties[.properties]
 logging:
   level:
     pro.chenggang: DEBUG
