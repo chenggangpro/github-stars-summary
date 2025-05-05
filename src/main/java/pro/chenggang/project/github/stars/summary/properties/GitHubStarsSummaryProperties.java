@@ -36,6 +36,21 @@ public class GitHubStarsSummaryProperties implements InitializingBean {
      */
     private Pattern ignoreRepoPattern;
 
+    /**
+     * The llm api url
+     */
+    private String llmUrl;
+
+    /**
+     * The llm api key (Optional)
+     */
+    private String llmApiKey;
+
+    /**
+     * The llm model name
+     */
+    private String llmModel;
+
     @Override
     public void afterPropertiesSet() throws Exception {
         if (StringUtils.isBlank(githubToken)) {
