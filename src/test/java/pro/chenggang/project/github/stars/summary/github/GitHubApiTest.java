@@ -37,7 +37,8 @@ class GitHubApiTest extends GithubStarsSummaryApplicationTests {
                 .as(StepVerifier::create)
                 .consumeNextWith(contentTree -> {
                     byte[] decoded = Base64.getDecoder().decode(contentTree.getContent().replace("\n", ""));
-                    System.out.println("Content Tree: " + new String(decoded));
+                    System.out.println("Content Tree:");
+                    System.out.println(new String(decoded));
                 })
                 .verifyComplete();
 
