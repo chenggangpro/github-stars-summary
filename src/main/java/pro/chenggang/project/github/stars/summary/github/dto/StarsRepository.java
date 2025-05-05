@@ -158,7 +158,7 @@ public class StarsRepository {
      * (Required)
      */
     @JsonProperty("license")
-    private final Object license;
+    private final License license;
     /**
      * (Required)
      */
@@ -822,6 +822,17 @@ public class StarsRepository {
         @JsonProperty("maintain")
         private final Boolean maintain;
 
+    }
+
+    @Jacksonized
+    @Builder
+    @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
+    @Getter
+    public static class License {
+
+        private final String name;
+
+        private final String url;
     }
 
     /**

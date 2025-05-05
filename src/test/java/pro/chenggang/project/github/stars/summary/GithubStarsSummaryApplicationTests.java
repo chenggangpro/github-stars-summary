@@ -15,9 +15,45 @@
  */
 package pro.chenggang.project.github.stars.summary;
 
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.Context;
+import pro.chenggang.project.github.stars.summary.entity.GithubRepositoryInfo;
+import pro.chenggang.project.github.stars.summary.entity.GithubRepositoryInfo.LanguageInfo;
+
+import java.util.List;
 
 @SpringBootTest
 public class GithubStarsSummaryApplicationTests {
 
+    @Autowired
+    TemplateEngine templateEngine;
+
+    @Test
+    void contextLoads() {
+        GithubRepositoryInfo repositoryInfo = GithubRepositoryInfo.builder()
+                .url("https://github.com/chenggang")
+                .name("chenggang")
+                .description("Chenggang")
+                .readmeContent("README.md")
+                .languages(List.of(
+                        LanguageInfo.builder()
+                                .language("java")
+                                .lines(123)
+                                .build(),
+                        LanguageInfo.builder()
+                                .language("python")
+                                .lines(456)
+                                .build()
+                ))
+                .license("MIT")
+                .licenseUrl("https://github.com/chenggang/chenggang")
+                .build();
+        Context context = new Context();
+        context.setVariable("repository",repositoryInfo);
+        String processed = templateEngine.process("user-prompt", context);
+        System.out.println(processed);
+    }
 }

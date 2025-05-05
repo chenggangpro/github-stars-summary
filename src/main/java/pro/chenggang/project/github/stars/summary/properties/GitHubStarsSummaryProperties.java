@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.InitializingBean;
 
+import java.net.URI;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
@@ -39,7 +40,7 @@ public class GitHubStarsSummaryProperties implements InitializingBean {
     /**
      * The llm api url
      */
-    private String llmUrl;
+    private URI llmUrl;
 
     /**
      * The llm api key (Optional)
@@ -51,10 +52,21 @@ public class GitHubStarsSummaryProperties implements InitializingBean {
      */
     private String llmModel;
 
+    /**
+     * The llm temperature
+     */
+    private Double temperature;
+
     @Override
     public void afterPropertiesSet() throws Exception {
         if (StringUtils.isBlank(githubToken)) {
-            throw new IllegalArgumentException("Missing GITHUB-TOKEN in file github-token.properties");
+            throw new IllegalArgumentException("Missing github token in github-stars-summary.yaml");
+        }
+        if(Objects.isNull(llmUrl) || StringUtils.isBlank(llmUrl.getHost()) || StringUtils.isBlank(llmUrl.getScheme())) {
+            throw new IllegalArgumentException("Illegal llm url in file github-stars-summary.yaml");
+        }
+        if (StringUtils.isBlank(llmModel)) {
+            throw new IllegalArgumentException("Missing llm model in github-stars-summary.yaml");
         }
         if (Objects.nonNull(ignoreRepoPattern.pattern()) && ignoreRepoPattern.pattern().isBlank()) {
             log.info("The ignore repo pattern is blank, force the pattern to be null");

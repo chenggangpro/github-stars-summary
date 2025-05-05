@@ -8,6 +8,9 @@ spring:
     time-zone: "Asia/Shanghai"
   config:
     import: optional:classpath:github-stars-summary.yaml[.yaml]
+  thymeleaf:
+    mode: TEXT
+    suffix: .md
 logging:
   level:
     pro.chenggang: DEBUG

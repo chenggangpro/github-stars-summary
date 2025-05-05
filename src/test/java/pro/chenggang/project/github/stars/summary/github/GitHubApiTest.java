@@ -19,8 +19,7 @@ class GitHubApiTest extends GithubStarsSummaryApplicationTests {
 
     @Test
     void listStars() {
-        githubApi.listStars()
-                .take(20)
+        githubApi.listStars(20)
                 .collectList()
                 .as(StepVerifier::create)
                 .consumeNextWith(stars -> {
@@ -31,7 +30,7 @@ class GitHubApiTest extends GithubStarsSummaryApplicationTests {
 
     @Test
     void getReadmeContent() {
-        githubApi.listStars()
+        githubApi.listStars(5)
                 .next()
                 .flatMap(starsRepository -> githubApi.getReadmeContent(starsRepository.getUrl()))
                 .as(StepVerifier::create)
@@ -41,6 +40,5 @@ class GitHubApiTest extends GithubStarsSummaryApplicationTests {
                     System.out.println(new String(decoded));
                 })
                 .verifyComplete();
-
     }
 }
