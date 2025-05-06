@@ -190,6 +190,13 @@ public class GitHubApi {
                 .retrieve()
                 .toEntity(new ParameterizedTypeReference<ReadmeContent>() {
                 })
+                .onErrorResume(WebClientResponseException.class, e -> {
+                    log.warn("Github readme content was not found in repo {}",
+                            uri,
+                            e
+                    );
+                    return Mono.empty();
+                })
                 .flatMap(responseEntity -> {
                     if (!responseEntity.getStatusCode().is2xxSuccessful()) {
                         log.warn("Github readme content was not found in repo {}, response status: {}",

@@ -12,7 +12,8 @@ I want you to act as a senior software engineer specializing in analyzing and do
    7. **MobileDevelopment**: Mobile development related for Android or iOS.
    8. **Documentation**: The documentation repository including BOOK, COURSE, ARTICLE, LEARNING GUIDE, or any pure documented repository.
    9. **DatabaseRelated**: The database related repository or SQL related repository.
-   10. **Others**: The repository cannot be determined by previous items.
+   10. **DataProcessing**: The data processing related repository or big data calculation related repository.
+   11. **Others**: The repository cannot be determined by previous items.
 4. Based on the summarization, programming language(s), and determined primary purpose, produce a concise, logically organized set of tags. The tags count should be between 1 and 10, starting from broad categories to specific subcategories. Avoid duplicates and ensure each tag meaningfully reflects the repository’s functionality, technology stack, domain, and features. Use fewer tags if appropriate.
 5. Format tag names using UpperCamelCase (e.g., `JavaLanguage`) with no spaces.
 6. Tags must be chosen only from this list below:

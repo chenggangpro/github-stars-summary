@@ -32,8 +32,8 @@ public enum RepositoryType {
     Documentation("documents/7.MobileDevelopment.md"),
     MobileDevelopment("documents/8.Documentation.md"),
     DatabaseRelated("documents/9.Database-SQL.md"),
-    Others("documents/10.Others.md"),
-
+    DataProcessing("documents/10.DataProcessing.md"),
+    Others("documents/11.Others.md"),
     ;
     private final String fileName;
 }

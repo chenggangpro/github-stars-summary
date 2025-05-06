@@ -112,7 +112,8 @@ public class SummaryResponse {
             "   7. **MobileDevelopment**: Mobile development related for Android or iOS.\n" +
             "   8. **Documentation**: The documentation repository including BOOK, COURSE, ARTICLE, LEARNING GUIDE, or any pure documented repository.\n" +
             "   9. **DatabaseRelated**: The database related repository or SQL related repository.\n" +
-            "   10. **Others**: The repository cannot be determined by previous items.")
+            "   10. **DataProcessing**: The data processing related repository or big data calculation related repository.\n" +
+            "   11. **Others**: The repository cannot be determined by previous items.")
     private final String repositoryType;
 
     @JsonProperty(value = "license", access = READ_WRITE, required = true)

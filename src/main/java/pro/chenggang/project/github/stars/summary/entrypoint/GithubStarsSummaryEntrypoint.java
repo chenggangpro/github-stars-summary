@@ -30,7 +30,10 @@ import pro.chenggang.project.github.stars.summary.entity.GithubRepositoryInfo;
 import pro.chenggang.project.github.stars.summary.entity.GithubRepositoryInfo.GithubRepositoryInfoBuilder;
 import pro.chenggang.project.github.stars.summary.github.GitHubApi;
 import pro.chenggang.project.github.stars.summary.llm.LlmApi;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
 
 import java.io.File;
 import java.io.IOException;
@@ -66,81 +69,101 @@ public class GithubStarsSummaryEntrypoint implements InitializingBean, Disposabl
     public Mono<Void> summary(int limit) {
         return gitHubApi.listStars(limit)
                 .filter(starsRepository -> !alreadySummarizedList.contains(starsRepository.getFullName()))
-                .concatMap(starsRepository -> {
-                    return gitHubApi.getLanguageInfo(starsRepository.getLanguagesUrl())
-                            .flatMap(languageInfos -> {
-                                return gitHubApi.getReadmeContent(starsRepository.getUrl())
-                                        .map(readmeContent -> {
-                                            byte[] decoded = Base64.getDecoder()
-                                                    .decode(readmeContent.replace("\n", ""));
-                                            return new String(decoded);
+                .buffer(5)
+                .concatMap(buffered -> {
+                    return Flux.fromIterable(buffered)
+                            .flatMap(starsRepository -> {
+                                return gitHubApi.getLanguageInfo(starsRepository.getLanguagesUrl())
+                                        .flatMap(languageInfos -> {
+                                            return gitHubApi.getReadmeContent(starsRepository.getUrl())
+                                                    .map(readmeContent -> {
+                                                        byte[] decoded = Base64.getDecoder()
+                                                                .decode(readmeContent.replace("\n", ""));
+                                                        return new String(decoded);
+                                                    })
+                                                    .defaultIfEmpty(StringUtils.defaultString(starsRepository.getDescription()))
+                                                    .map(readmeContent -> {
+                                                        if (StringUtils.isBlank(readmeContent)) {
+                                                            log.warn("Readme content is blank, repository: {}", starsRepository.getUrl());
+                                                        }
+                                                        GithubRepositoryInfoBuilder githubRepositoryInfoBuilder = GithubRepositoryInfo.builder()
+                                                                .name(starsRepository.getName())
+                                                                .fullName(starsRepository.getFullName())
+                                                                .readmeContent(readmeContent)
+                                                                .url(starsRepository.getHtmlUrl().toString())
+                                                                .languages(languageInfos);
+                                                        if (Objects.nonNull(starsRepository.getLicense())) {
+                                                            githubRepositoryInfoBuilder.license(starsRepository.getLicense().getName())
+                                                                    .licenseUrl(starsRepository.getLicense().getUrl());
+                                                        }
+                                                        return githubRepositoryInfoBuilder.build();
+                                                    });
                                         })
-                                        .defaultIfEmpty("")
-                                        .map(readmeContent -> {
-                                            if (StringUtils.isBlank(readmeContent)) {
-                                                log.warn("Readme content is blank, repository: {}", starsRepository.getUrl());
-                                            }
-                                            GithubRepositoryInfoBuilder githubRepositoryInfoBuilder = GithubRepositoryInfo.builder()
-                                                    .name(starsRepository.getName())
-                                                    .fullName(starsRepository.getFullName())
-                                                    .readmeContent(readmeContent)
-                                                    .url(starsRepository.getHtmlUrl().toString())
-                                                    .languages(languageInfos);
-                                            if (Objects.nonNull(starsRepository.getLicense())) {
-                                                githubRepositoryInfoBuilder.license(starsRepository.getLicense().getName())
-                                                        .licenseUrl(starsRepository.getLicense().getUrl());
-                                            }
-                                            return githubRepositoryInfoBuilder.build();
-                                        });
+                                        .flatMap(llmApi::summary);
+                            },5)
+                            .map(summaryResponse -> {
+                                return summaryResponse.toBuilder()
+                                        .tags(summaryResponse.getTags().stream()
+                                                .map(value -> "#" + value)
+                                                .toList()
+                                        )
+                                        .repositoryName("[" + summaryResponse.getRepositoryName() + "]")
+                                        .build();
                             })
-                            .flatMap(llmApi::summary);
+                            .collectList();
                 })
-                .map(summaryResponse -> {
-                    return summaryResponse.toBuilder()
-                            .tags(summaryResponse.getTags().stream()
-                                    .map(value -> "#" + value)
-                                    .toList()
-                            )
-                            .repositoryName("[" + summaryResponse.getRepositoryName() + "]")
-                            .build();
-                })
-                .concatMap(summaryResponse -> {
-                    return Mono.fromCallable(() -> fileChannels.entrySet()
-                                    .stream()
-                                    .filter(entry -> entry.getKey().test(summaryResponse.getRepositoryType()))
-                                    .findFirst()
-                                    .map(Map.Entry::getValue)
-                            )
-                            .flatMap(Mono::justOrEmpty)
-                            .switchIfEmpty(Mono.defer(() -> {
-                                log.error("Repository type not found: {}", summaryResponse.getRepositoryType());
-                                return Mono.error(new IllegalStateException("Repository type not found: " + summaryResponse.getRepositoryType()));
-                            }))
-                            .flatMap(asynchronousFileChannel -> {
-                                return Mono.fromCallable(() -> {
-                                            Context context = new Context();
-                                            context.setVariable("summary", summaryResponse);
-                                            return templateEngine.process("snippet", context);
-                                        })
-                                        .flatMap(lines -> {
-                                            byte[] bytes = (lines + System.lineSeparator()).getBytes();
-                                            DefaultDataBuffer wrap = factory.wrap(bytes);
-                                            return Mono.fromCallable(asynchronousFileChannel::size)
-                                                    .flatMapMany(position -> DataBufferUtils.write(Mono.just(wrap),
-                                                                    asynchronousFileChannel,
-                                                                    position
-                                                            )
+                .concatMap(summaryResponseList -> {
+                    return Flux.fromIterable(summaryResponseList)
+                            .flatMap(summaryResponse -> {
+                                return Mono.fromCallable(() -> fileChannels.entrySet()
+                                                .stream()
+                                                .filter(entry -> entry.getKey().test(summaryResponse.getRepositoryType()))
+                                                .findFirst()
+                                                .map(Map.Entry::getValue)
+                                        )
+                                        .flatMap(Mono::justOrEmpty)
+                                        .switchIfEmpty(Mono.defer(() -> {
+                                            log.warn("Repository type not found: {}", summaryResponse.getRepositoryType());
+                                            return Mono.fromCallable(() -> fileChannels.entrySet()
+                                                            .stream()
+                                                            .filter(entry -> entry.getKey().test(RepositoryType.Others.name()))
+                                                            .findFirst()
+                                                            .map(Map.Entry::getValue)
                                                     )
-                                                    .then(Mono.defer(() -> {
-                                                        return this.writeLockFile(summaryResponse.getRepositoryFullName())
+                                                    .flatMap(Mono::justOrEmpty);
+                                        }))
+                                        .map(asynchronousFileChannel -> Tuples.of(summaryResponse,asynchronousFileChannel));
+                            },5)
+                            .groupBy(Tuple2::getT2)
+                            .flatMap(groupedFlux -> {
+                                AsynchronousFileChannel asynchronousFileChannel = groupedFlux.key();
+                                return groupedFlux.map(Tuple2::getT1)
+                                        .concatMap(summaryResponse -> {
+                                            return Mono.fromCallable(() -> {
+                                                        Context context = new Context();
+                                                        context.setVariable("summary", summaryResponse);
+                                                        return templateEngine.process("snippet", context);
+                                                    })
+                                                    .flatMap(lines -> {
+                                                        byte[] bytes = (lines + System.lineSeparator()).getBytes();
+                                                        DefaultDataBuffer wrap = factory.wrap(bytes);
+                                                        return Mono.fromCallable(asynchronousFileChannel::size)
+                                                                .flatMapMany(position -> DataBufferUtils.write(Mono.just(wrap),
+                                                                                asynchronousFileChannel,
+                                                                                position
+                                                                        )
+                                                                )
                                                                 .then(Mono.defer(() -> {
-                                                                    log.info("Write repository ({}) summary to file: {}.md",
-                                                                            summaryResponse.getRepositoryName(),
-                                                                            summaryResponse.getRepositoryType()
-                                                                    );
-                                                                    return Mono.empty();
+                                                                    return this.writeLockFile(summaryResponse.getRepositoryFullName())
+                                                                            .then(Mono.defer(() -> {
+                                                                                log.info("Write repository ({}) summary to file: {}.md",
+                                                                                        summaryResponse.getRepositoryName(),
+                                                                                        summaryResponse.getRepositoryType()
+                                                                                );
+                                                                                return Mono.empty();
+                                                                            }));
                                                                 }));
-                                                    }));
+                                                    });
                                         });
                             });
                 })
