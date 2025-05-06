@@ -27,7 +27,7 @@ import org.springframework.web.reactive.function.client.WebClient.RequestHeaders
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.web.util.UriComponentsBuilder;
 import pro.chenggang.project.github.stars.summary.entity.GithubRepositoryInfo.LanguageInfo;
-import pro.chenggang.project.github.stars.summary.github.dto.ContentTree;
+import pro.chenggang.project.github.stars.summary.github.dto.ReadmeContent;
 import pro.chenggang.project.github.stars.summary.github.dto.StarsRepository;
 import pro.chenggang.project.github.stars.summary.properties.GitHubStarsSummaryProperties;
 import reactor.core.publisher.Flux;
@@ -174,15 +174,21 @@ public class GitHubApi {
         });
     }
 
-    public Mono<ContentTree> getReadmeContent(URI uri) {
+    /**
+     * <a herf="https://docs.github.com/en/rest/repos/contents?apiVersion=2022-11-28#get-a-repository-readme">get-a-repository-readme</a>
+     *
+     * @param uri
+     * @return
+     */
+    public Mono<String> getReadmeContent(URI uri) {
         URI readmeUri = UriComponentsBuilder.fromUri(uri)
-                .path("/contents/README.md")
+                .path("/readme")
                 .build()
                 .toUri();
         return githubWebClient.get()
                 .uri(readmeUri)
                 .retrieve()
-                .toEntity(new ParameterizedTypeReference<ContentTree>() {
+                .toEntity(new ParameterizedTypeReference<ReadmeContent>() {
                 })
                 .flatMap(responseEntity -> {
                     if (!responseEntity.getStatusCode().is2xxSuccessful()) {
@@ -193,7 +199,8 @@ public class GitHubApi {
                         return Mono.empty();
                     }
                     log.info("[Get GitHub Readme]Readme uri: {}", readmeUri);
-                    return Mono.justOrEmpty(responseEntity.getBody());
+                    ReadmeContent readmeContent = responseEntity.getBody();
+                    return Mono.just(readmeContent.getContent());
                 });
     }
 

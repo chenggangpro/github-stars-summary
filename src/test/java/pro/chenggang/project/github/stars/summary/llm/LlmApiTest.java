@@ -43,8 +43,8 @@ class LlmApiTest extends GithubStarsSummaryApplicationTests {
                 .next()
                 .flatMap(starsRepository -> {
                     return githubApi.getReadmeContent(starsRepository.getUrl())
-                            .map(contentTree -> {
-                                byte[] decoded = Base64.getDecoder().decode(contentTree.getContent().replace("\n", ""));
+                            .map(readmeContent -> {
+                                byte[] decoded = Base64.getDecoder().decode(readmeContent.replace("\n", ""));
                                 return new String(decoded);
                             })
                             .flatMap(readmeContent -> {

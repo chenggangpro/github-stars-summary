@@ -49,8 +49,8 @@ class GitHubApiTest extends GithubStarsSummaryApplicationTests {
                 .next()
                 .flatMap(starsRepository -> githubApi.getReadmeContent(starsRepository.getUrl()))
                 .as(StepVerifier::create)
-                .consumeNextWith(contentTree -> {
-                    byte[] decoded = Base64.getDecoder().decode(contentTree.getContent().replace("\n", ""));
+                .consumeNextWith(readmeContent -> {
+                    byte[] decoded = Base64.getDecoder().decode(readmeContent.replace("\n", ""));
                     System.out.println("Content Tree:");
                     System.out.println(new String(decoded));
                 })

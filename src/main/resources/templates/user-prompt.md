@@ -13,8 +13,8 @@
 |:---------|:----|
 [# th:each="p : ${repository.languages}"]|[(${p.language})]|[(${p.lines})]|[/]
 [/]
-* The README.md file's content of github repository is
+* The README file's content of github repository is
 
-```markdown
+```text
 [(${repository.readmeContent})]
 ```

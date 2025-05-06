@@ -70,9 +70,9 @@ public class GithubStarsSummaryEntrypoint implements InitializingBean, Disposabl
                     return gitHubApi.getLanguageInfo(starsRepository.getLanguagesUrl())
                             .flatMap(languageInfos -> {
                                 return gitHubApi.getReadmeContent(starsRepository.getUrl())
-                                        .map(contentTree -> {
+                                        .map(readmeContent -> {
                                             byte[] decoded = Base64.getDecoder()
-                                                    .decode(contentTree.getContent().replace("\n", ""));
+                                                    .decode(readmeContent.replace("\n", ""));
                                             return new String(decoded);
                                         })
                                         .defaultIfEmpty("")
@@ -183,8 +183,9 @@ public class GithubStarsSummaryEntrypoint implements InitializingBean, Disposabl
             AsynchronousFileChannel asyncChannel = AsynchronousFileChannel.open(
                     path,
                     StandardOpenOption.CREATE,
-                    StandardOpenOption.WRITE,
-                    StandardOpenOption.TRUNCATE_EXISTING
+                    StandardOpenOption.WRITE
+//                    ,
+//                    StandardOpenOption.TRUNCATE_EXISTING
             );
             fileChannels.put(predicate, asyncChannel);
         }
