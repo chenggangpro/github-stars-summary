@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 /**
  * @author Gang Cheng
@@ -46,7 +47,8 @@ public class GitHubApi {
      * -H "Accept: application/vnd.github+json" \
      * -H "Authorization: Bearer <YOUR-TOKEN>" \
      * -H "X-GitHub-Api-Version: 2022-11-28" \
-     * https://api.github.com/user/starred
+     *
+     * @see <a href="https://api.github.com/user/starred" >github-user-starred</a>
      */
     public Flux<StarsRepository> listStars(int limit) {
         int perPage = 30;
@@ -58,59 +60,72 @@ public class GitHubApi {
     }
 
     private Flux<StarsRepository> pagingStarsRepository(URI uri, int limit) {
-        String scheme = uri.getScheme();
-        RequestHeadersSpec<?> requestHeadersSpec;
-        if (StringUtils.isNotBlank(scheme)) {
-            requestHeadersSpec = githubWebClient.get()
-                    .uri(uri);
-        } else {
-            requestHeadersSpec = githubWebClient.get()
-                    .uri(uriBuilder -> uriBuilder.path(uri.getPath())
-                            .query(uri.getQuery())
-                            .build()
-                    );
-        }
-        return requestHeadersSpec
-                .retrieve()
-                .toEntity(new ParameterizedTypeReference<List<StarsRepository>>() {
-                })
-                .flatMapMany(responseEntity -> {
-                    if (!responseEntity.getStatusCode().is2xxSuccessful()) {
-                        throw WebClientResponseException.create(
-                                responseEntity.getStatusCode().value(),
-                                responseEntity.getStatusCode().toString(),
-                                responseEntity.getHeaders(),
-                                new byte[0],
-                                StandardCharsets.UTF_8
-                        );
-                    }
-                    List<StarsRepository> body = responseEntity.getBody();
-                    if (Objects.isNull(body) || body.isEmpty()) {
-                        log.warn("Github stars repository list is empty");
-                        return Flux.empty();
-                    }
-                    List<StarsRepository> filteredStarsRepository = body.stream()
-                            .filter(starsRepository -> {
-                                if (Objects.nonNull(gitHubStarsSummaryProperties.getIgnoreRepoPattern())) {
-                                    return gitHubStarsSummaryProperties.getIgnoreRepoPattern()
-                                            .asPredicate()
-                                            .negate()
-                                            .test(starsRepository.getFullName());
-                                }
-                                return true;
-                            })
-                            .toList();
-                    return Flux.deferContextual(contextView -> {
-                        return Mono.just(contextView.get(AtomicInteger.class))
-                                .flatMapMany(counter -> {
-                                    if (limit > 0 && counter.get() >= limit) {
+        return Flux.deferContextual(contextView -> {
+            return Mono.just(contextView.get(AtomicInteger.class))
+                    .flatMapMany(counter -> {
+                        if (limit > 0 && counter.get() >= limit) {
+                            return Flux.empty();
+                        }
+                        String scheme = uri.getScheme();
+                        RequestHeadersSpec<?> requestHeadersSpec;
+                        if (StringUtils.isNotBlank(scheme)) {
+                            requestHeadersSpec = githubWebClient.get()
+                                    .uri(uri);
+                        } else {
+                            requestHeadersSpec = githubWebClient.get()
+                                    .uri(uriBuilder -> uriBuilder.path(uri.getPath())
+                                            .query(uri.getQuery())
+                                            .build()
+                                    );
+                        }
+                        return requestHeadersSpec
+                                .retrieve()
+                                .toEntity(new ParameterizedTypeReference<List<StarsRepository>>() {
+                                })
+                                .flatMapMany(responseEntity -> {
+                                    HttpHeaders responseEntityHeaders = responseEntity.getHeaders();
+                                    String rateLimit = responseEntityHeaders.entrySet()
+                                            .stream()
+                                            .filter(entry -> entry.getKey().startsWith("x-ratelimit"))
+                                            .map(entry -> StringUtils.substringAfter(entry.getKey(), "x-ratelimit-")
+                                                    + ": " + entry.getValue()
+                                            )
+                                            .collect(Collectors.joining(","));
+                                    log.debug("[Get GitHub Stars]Rate limit: {}", rateLimit);
+                                    if (!responseEntity.getStatusCode().is2xxSuccessful()) {
+                                        throw WebClientResponseException.create(
+                                                responseEntity.getStatusCode().value(),
+                                                responseEntity.getStatusCode().toString(),
+                                                responseEntityHeaders,
+                                                new byte[0],
+                                                StandardCharsets.UTF_8
+                                        );
+                                    }
+                                    List<StarsRepository> body = responseEntity.getBody();
+                                    if (Objects.isNull(body) || body.isEmpty()) {
+                                        log.warn("Github stars repository list is empty");
                                         return Flux.empty();
                                     }
+                                    List<StarsRepository> filteredStarsRepository = body.stream()
+                                            .filter(starsRepository -> {
+                                                if (Objects.nonNull(gitHubStarsSummaryProperties.getIgnoreRepoPattern())) {
+                                                    return gitHubStarsSummaryProperties.getIgnoreRepoPattern()
+                                                            .asPredicate()
+                                                            .negate()
+                                                            .test(starsRepository.getFullName());
+                                                }
+                                                return true;
+                                            })
+                                            .toList();
+                                    int remain = limit - counter.get();
+                                    if (remain < filteredStarsRepository.size()) {
+                                        filteredStarsRepository = filteredStarsRepository.subList(0, remain);
+                                    }
                                     counter.accumulateAndGet(filteredStarsRepository.size(), Integer::sum);
+                                    log.info("[Get GitHub Stars] Result Count: {}", filteredStarsRepository.size());
                                     return Flux.fromIterable(filteredStarsRepository)
                                             .concatWith(Flux.defer(() -> {
-                                                HttpHeaders headers = responseEntity.getHeaders();
-                                                List<String> linksUrl = headers.get("link");
+                                                List<String> linksUrl = responseEntityHeaders.get("link");
                                                 if (Objects.isNull(linksUrl) || linksUrl.isEmpty()) {
                                                     log.warn("Links header was not found in response headers");
                                                     return Flux.empty();
@@ -129,6 +144,7 @@ public class GitHubApi {
                                                 }
                                                 String nextLink = firstNextLink.get();
                                                 String actualLink = StringUtils.substringBetween(nextLink, "<", ">");
+                                                log.debug("[Get GitHub Stars]Next Link: {}", actualLink);
                                                 return Mono.defer(() -> Mono.just(actualLink))
                                                         .flatMapMany(link -> {
                                                             return Flux.defer(() -> {
@@ -138,16 +154,16 @@ public class GitHubApi {
                                             }));
                                 });
                     });
-                });
+        });
     }
 
     public Mono<ContentTree> getReadmeContent(URI uri) {
+        URI readmeUri = UriComponentsBuilder.fromUri(uri)
+                .path("/contents/README.md")
+                .build()
+                .toUri();
         return githubWebClient.get()
-                .uri(UriComponentsBuilder.fromUri(uri)
-                        .path("/contents/README.md")
-                        .build()
-                        .toUri()
-                )
+                .uri(readmeUri)
                 .retrieve()
                 .toEntity(new ParameterizedTypeReference<ContentTree>() {
                 })
@@ -159,6 +175,7 @@ public class GitHubApi {
                         );
                         return Mono.empty();
                     }
+                    log.info("[Get GitHub Readme]Readme uri: {}", readmeUri);
                     return Mono.justOrEmpty(responseEntity.getBody());
                 });
     }
@@ -169,7 +186,10 @@ public class GitHubApi {
                 .retrieve()
                 .bodyToMono(new ParameterizedTypeReference<LinkedHashMap<String, Integer>>() {
                 })
-                .flatMapMany(dataMap -> Flux.fromIterable(dataMap.entrySet()))
+                .flatMapMany(dataMap -> {
+                    log.info("[Get GitHub Language Info]LanguageInfo: {}", dataMap);
+                    return Flux.fromIterable(dataMap.entrySet());}
+                )
                 .map(entry -> LanguageInfo.builder()
                         .language(entry.getKey())
                         .lines(entry.getValue())

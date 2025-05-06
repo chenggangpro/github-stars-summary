@@ -19,11 +19,11 @@ class GitHubApiTest extends GithubStarsSummaryApplicationTests {
 
     @Test
     void listStars() {
-        githubApi.listStars(20)
+        githubApi.listStars(2)
                 .collectList()
                 .as(StepVerifier::create)
                 .consumeNextWith(stars -> {
-                    stars.forEach(starsRepository -> System.out.println("Stars Repository Id: " + starsRepository.getId()));
+                    System.out.println(stars.size());
                 })
                 .verifyComplete();
     }

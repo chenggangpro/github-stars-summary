@@ -1,5 +1,6 @@
 package pro.chenggang.project.github.stars.summary.llm;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.victools.jsonschema.generator.Option;
@@ -78,9 +79,13 @@ public class LlmApi {
                             )
                             .messages(this.getMessages(githubRepositoryInfo, jsonSchema.toString()))
                             .build();
+                    try {
+                        log.trace("[LLM Summary]LlmRequest: \n {}", objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(llmRequest));
+                    } catch (JsonProcessingException e) {
+                        return Mono.error(e);
+                    }
                     return llmWebClient.post()
-                            .uri(uriBuilder -> uriBuilder.path(gitHubStarsSummaryProperties.getLlmUrl().getPath())
-                                    .build())
+                            .uri(gitHubStarsSummaryProperties.getLlmUrl())
                             .bodyValue(llmRequest)
                             .retrieve()
                             .bodyToMono(LlmChatResponse.class)
@@ -92,17 +97,16 @@ public class LlmApi {
                                 Choice choice = choices.get(0);
                                 Message message = choice.getMessage();
                                 if (Objects.isNull(message)) {
-                                    return Mono.error(new IllegalStateException(
-                                            "The message of lLm chat response is empty"));
+                                    return Mono.error(new IllegalStateException("The message of lLm chat response is empty"));
                                 }
                                 String content = message.getContent();
                                 if (StringUtils.isBlank(content)) {
-                                    return Mono.error(new IllegalStateException(
-                                            "The content of lLm chat response is empty"));
+                                    return Mono.error(new IllegalStateException("The content of lLm chat response is empty"));
                                 }
                                 return Mono.just(content)
                                         .map(contentValue -> {
                                             if (contentValue.startsWith("<think>")) {
+                                                log.debug("[LLM Summary]Response is thinking result, remove thinking content");
                                                 contentValue = StringUtils.trim(StringUtils.substringAfter(
                                                         contentValue,
                                                         "</think>"
@@ -111,6 +115,7 @@ public class LlmApi {
                                                 contentValue = StringUtils.trim(contentValue);
                                             }
                                             if (contentValue.startsWith("<answer>")) {
+                                                log.debug("[LLM Summary]Response has answer label, remove answer label");
                                                 contentValue = StringUtils.trim(StringUtils.substringBetween(
                                                         contentValue,
                                                         "<answer>",
@@ -119,9 +124,16 @@ public class LlmApi {
                                             }
                                             return contentValue;
                                         })
-                                        .flatMap(contentValue -> Mono.fromCallable(() -> {
-                                            return objectMapper.readValue(contentValue, SummaryResponse.class);
-                                        }))
+                                        .flatMap(contentValue -> {
+                                            try {
+                                                log.trace("[LLM Summary]Response Content:\n {}", objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(contentValue));
+                                            } catch (JsonProcessingException e) {
+                                                return Mono.error(e);
+                                            }
+                                            return Mono.fromCallable(() -> {
+                                                return objectMapper.readValue(contentValue, SummaryResponse.class);
+                                            });
+                                        })
                                         .switchIfEmpty(Mono.error(new IllegalStateException(
                                                 "The summary response is empty")));
                             })
