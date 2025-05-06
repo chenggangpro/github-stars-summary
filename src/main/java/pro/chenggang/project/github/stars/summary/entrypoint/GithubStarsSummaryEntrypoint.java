@@ -35,12 +35,14 @@ import reactor.core.publisher.Mono;
 import java.io.File;
 import java.io.IOException;
 import java.nio.channels.AsynchronousFileChannel;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
@@ -54,6 +56,9 @@ import java.util.function.Predicate;
 @RequiredArgsConstructor
 public class GithubStarsSummaryEntrypoint implements InitializingBean, DisposableBean {
 
+    private AsynchronousFileChannel lockFileChannel;
+    private final DefaultDataBufferFactory factory = new DefaultDataBufferFactory();
+    private final Set<String> alreadySummarizedList = ConcurrentHashMap.newKeySet();
     private final Map<Predicate<String>, AsynchronousFileChannel> fileChannels = new ConcurrentHashMap<>();
     private final GitHubApi gitHubApi;
     private final LlmApi llmApi;
@@ -61,6 +66,7 @@ public class GithubStarsSummaryEntrypoint implements InitializingBean, Disposabl
 
     public Mono<Void> summary(int limit) {
         return gitHubApi.listStars(limit)
+                .filter(starsRepository -> !alreadySummarizedList.contains(starsRepository.getFullName()))
                 .concatMap(starsRepository -> {
                     return gitHubApi.getLanguageInfo(starsRepository.getLanguagesUrl())
                             .flatMap(languageInfos -> {
@@ -120,24 +126,46 @@ public class GithubStarsSummaryEntrypoint implements InitializingBean, Disposabl
                                         })
                                         .flatMap(lines -> {
                                             byte[] bytes = (lines + System.lineSeparator()).getBytes();
-                                            DefaultDataBufferFactory factory = new DefaultDataBufferFactory();
                                             DefaultDataBuffer wrap = factory.wrap(bytes);
                                             return Mono.fromCallable(asynchronousFileChannel::size)
                                                     .flatMapMany(position -> DataBufferUtils.write(Mono.just(wrap),
                                                                     asynchronousFileChannel,
-                                                                    position)
+                                                                    position
+                                                            )
                                                     )
                                                     .then(Mono.defer(() -> {
-                                                        log.info("Write repository ({}) summary to file: {}.md",
-                                                                summaryResponse.getRepositoryName(),
-                                                                summaryResponse.getRepositoryType()
-                                                        );
-                                                        return Mono.empty();
+                                                        return this.writeLockFile(summaryResponse.getRepositoryFullName())
+                                                                .then(Mono.defer(() -> {
+                                                                    log.info("Write repository ({}) summary to file: {}.md",
+                                                                            summaryResponse.getRepositoryName(),
+                                                                            summaryResponse.getRepositoryType()
+                                                                    );
+                                                                    return Mono.empty();
+                                                                }));
                                                     }));
                                         });
                             });
                 })
                 .then();
+    }
+
+    private Mono<Void> writeLockFile(String repositoryFullName) {
+        return Mono.just(repositoryFullName)
+                .flatMap(name -> {
+                    this.alreadySummarizedList.add(repositoryFullName);
+                    byte[] bytes = (name + System.lineSeparator()).getBytes();
+                    DefaultDataBuffer wrap = factory.wrap(bytes);
+                    return Mono.fromCallable(this.lockFileChannel::size)
+                            .flatMapMany(position -> DataBufferUtils.write(Mono.just(wrap),
+                                            lockFileChannel,
+                                            position
+                                    )
+                            )
+                            .then(Mono.defer(() -> {
+                                log.info("Write lock file success: {}", repositoryFullName);
+                                return Mono.empty();
+                            }));
+                });
     }
 
     @Override
@@ -162,6 +190,21 @@ public class GithubStarsSummaryEntrypoint implements InitializingBean, Disposabl
             );
             fileChannels.put(predicate, asyncChannel);
         }
+        File lockFile = new File(userDir + File.separator + "summary.lock");
+        if (!lockFile.exists()) {
+            lockFile.createNewFile();
+        }
+        Path lockFilePath = lockFile.toPath();
+        Files.readAllLines(lockFilePath)
+                .stream()
+                .map(StringUtils::trim)
+                .filter(StringUtils::isNotBlank)
+                .forEach(alreadySummarizedList::add);
+        lockFileChannel = AsynchronousFileChannel.open(
+                lockFilePath,
+                StandardOpenOption.CREATE,
+                StandardOpenOption.WRITE
+        );
     }
 
     @Override
@@ -174,5 +217,8 @@ public class GithubStarsSummaryEntrypoint implements InitializingBean, Disposabl
             }
         });
         fileChannels.clear();
+        if (Objects.nonNull(lockFileChannel)) {
+            this.lockFileChannel.close();
+        }
     }
 }
