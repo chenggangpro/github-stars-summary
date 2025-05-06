@@ -38,7 +38,6 @@ import java.nio.channels.AsynchronousFileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.time.Duration;
 import java.util.Base64;
 import java.util.Map;
 import java.util.Objects;
@@ -94,8 +93,7 @@ public class GithubStarsSummaryEntrypoint implements InitializingBean, Disposabl
                                             return githubRepositoryInfoBuilder.build();
                                         });
                             })
-                            .flatMap(llmApi::summary)
-                            .delaySubscription(Duration.ofMillis(500));
+                            .flatMap(llmApi::summary);
                 })
                 .map(summaryResponse -> {
                     return summaryResponse.toBuilder()

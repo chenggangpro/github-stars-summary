@@ -97,7 +97,9 @@ public class LlmApi {
                             .messages(this.getMessages(githubRepositoryInfo, jsonSchema.toString()))
                             .build();
                     try {
-                        log.trace("[LLM Summary]LlmRequest: \n {}", objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(llmRequest));
+                        log.trace("[LLM Summary]LlmRequest: \n {}",
+                                objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(llmRequest)
+                        );
                     } catch (JsonProcessingException e) {
                         return Mono.error(e);
                     }
@@ -143,12 +145,21 @@ public class LlmApi {
                                         })
                                         .flatMap(contentValue -> {
                                             try {
-                                                log.trace("[LLM Summary]Response Content:\n {}", objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(contentValue));
+                                                log.trace("[LLM Summary]Response Content:\n {}",
+                                                        objectMapper.writerWithDefaultPrettyPrinter()
+                                                                .writeValueAsString(contentValue)
+                                                );
                                             } catch (JsonProcessingException e) {
                                                 return Mono.error(e);
                                             }
                                             return Mono.fromCallable(() -> {
-                                                return objectMapper.readValue(contentValue, SummaryResponse.class);
+                                                SummaryResponse summaryResponse = objectMapper.readValue(contentValue,
+                                                        SummaryResponse.class
+                                                );
+                                                log.info("[LLM Summary]Get summary response success from {}",
+                                                        gitHubStarsSummaryProperties.getLlmUrl().getHost()
+                                                );
+                                                return summaryResponse;
                                             });
                                         })
                                         .switchIfEmpty(Mono.error(new IllegalStateException(
