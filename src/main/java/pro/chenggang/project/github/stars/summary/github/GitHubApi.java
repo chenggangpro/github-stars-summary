@@ -132,9 +132,11 @@ public class GitHubApi {
                                                 return true;
                                             })
                                             .toList();
-                                    int remain = limit - counter.get();
-                                    if (remain < filteredStarsRepository.size()) {
-                                        filteredStarsRepository = filteredStarsRepository.subList(0, remain);
+                                    if (limit > 0) {
+                                        int remain = limit - counter.get();
+                                        if (remain < filteredStarsRepository.size()) {
+                                            filteredStarsRepository = filteredStarsRepository.subList(0, remain);
+                                        }
                                     }
                                     counter.accumulateAndGet(filteredStarsRepository.size(), Integer::sum);
                                     log.info("[Get GitHub Stars] Result Count: {}", filteredStarsRepository.size());
@@ -202,8 +204,9 @@ public class GitHubApi {
                 .bodyToMono(new ParameterizedTypeReference<LinkedHashMap<String, Integer>>() {
                 })
                 .flatMapMany(dataMap -> {
-                    log.info("[Get GitHub Language Info]LanguageInfo: {}", dataMap);
-                    return Flux.fromIterable(dataMap.entrySet());}
+                            log.info("[Get GitHub Language Info]LanguageInfo: {}", dataMap);
+                            return Flux.fromIterable(dataMap.entrySet());
+                        }
                 )
                 .map(entry -> LanguageInfo.builder()
                         .language(entry.getKey())
