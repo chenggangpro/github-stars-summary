@@ -1,16 +1,20 @@
 ### GitHub repository information
 * The simple name of this github repository is `[(${repository.name})]`
+
 * The full name of this github repository is `[(${repository.fullName})]`
-* The url of this github repository is `[(${repository.url})]`[# th:if="${repository.license != null}"]
-* The license of this github repository is `[(${repository.license})]` and the license url is `[(${repository.licenseUrl})]`[/]
-* The description of this github repository is `[(${repository.description})]`[# th:if="${repository.languages != null && !repository.languages.isEmpty()}"]
+
+* The url of this github repository is `[(${repository.url})]`
+[# th:if="${repository.license != null}"]
+* The license of this github repository is `[(${repository.license})]` and the license url is `[(${repository.licenseUrl})]`
+[/]
+[# th:if="${repository.languages != null && !repository.languages.isEmpty()}"]
 * The usages of programming language in this github repository is
-  ```markdown
-  | language |lines|
-  |:---------|:----|
-  [# th:each="p : ${repository.languages}"]|[(${p.language})]|[(${p.lines})]|[/]
-  ```[/]
+| language |lines|
+|:---------|:----|
+[# th:each="p : ${repository.languages}"]|[(${p.language})]|[(${p.lines})]|[/]
+[/]
 * The README.md file's content of github repository is
-    ```markdown
-    [(${repository.readmeContent})]
-    ```
+
+```markdown
+[(${repository.readmeContent})]
+```

@@ -1,3 +1,18 @@
+/*
+ *    Copyright 2025 the original author or authors.
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *       https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
 package pro.chenggang.project.github.stars.summary.github;
 
 import lombok.RequiredArgsConstructor;
@@ -55,7 +70,7 @@ public class GitHubApi {
         if (limit > 0 && limit <= 30) {
             perPage = limit;
         }
-        return this.pagingStarsRepository(URI.create("/user/starred?per_page=" + perPage + "&direction=asc"), limit)
+        return this.pagingStarsRepository(URI.create("/user/starred?per_page=" + perPage + "&direction=desc"), limit)
                 .contextWrite(context -> context.put(AtomicInteger.class, new AtomicInteger(0)));
     }
 
@@ -86,8 +101,8 @@ public class GitHubApi {
                                     HttpHeaders responseEntityHeaders = responseEntity.getHeaders();
                                     String rateLimit = responseEntityHeaders.entrySet()
                                             .stream()
-                                            .filter(entry -> entry.getKey().startsWith("x-ratelimit"))
-                                            .map(entry -> StringUtils.substringAfter(entry.getKey(), "x-ratelimit-")
+                                            .filter(entry -> entry.getKey().startsWith("X-RateLimit"))
+                                            .map(entry -> StringUtils.substringAfter(entry.getKey(), "X-RateLimit-")
                                                     + ": " + entry.getValue()
                                             )
                                             .collect(Collectors.joining(","));
