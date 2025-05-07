@@ -32,22 +32,16 @@ import pro.chenggang.project.github.stars.summary.github.GitHubApi;
 import pro.chenggang.project.github.stars.summary.llm.LlmApi;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.util.function.Tuple2;
-import reactor.util.function.Tuples;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.channels.AsynchronousFileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Base64;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 /**
  * @author Gang Cheng
@@ -60,9 +54,9 @@ import java.util.stream.Collectors;
 public class GithubStarsSummaryEntrypoint implements InitializingBean, DisposableBean {
 
     private AsynchronousFileChannel lockFileChannel;
+    private AsynchronousFileChannel outputFileChannel;
     private final DefaultDataBufferFactory factory = new DefaultDataBufferFactory();
     private final Set<String> alreadySummarizedList = ConcurrentHashMap.newKeySet();
-    private final Map<Predicate<String>, AsynchronousFileChannel> fileChannels = new ConcurrentHashMap<>();
     private final GitHubApi gitHubApi;
     private final LlmApi llmApi;
     private final TemplateEngine templateEngine;
@@ -119,101 +113,61 @@ public class GithubStarsSummaryEntrypoint implements InitializingBean, Disposabl
                 })
                 .concatMap(summaryResponseList -> {
                     return Flux.fromIterable(summaryResponseList)
-                            .flatMap(summaryResponse -> {
-                                        return Mono.fromCallable(() -> fileChannels.entrySet()
-                                                        .stream()
-                                                        .filter(entry -> entry.getKey().test(summaryResponse.getRepositoryType()))
-                                                        .findFirst()
-                                                        .map(Map.Entry::getValue)
-                                                )
-                                                .flatMap(Mono::justOrEmpty)
-                                                .switchIfEmpty(Mono.defer(() -> {
-                                                    log.warn("Repository type not found: {}", summaryResponse.getRepositoryType());
-                                                    return Mono.fromCallable(() -> fileChannels.entrySet()
-                                                                    .stream()
-                                                                    .filter(entry -> entry.getKey().test(RepositoryType.Others.name()))
-                                                                    .findFirst()
-                                                                    .map(Map.Entry::getValue)
-                                                            )
-                                                            .flatMap(Mono::justOrEmpty);
-                                                }))
-                                                .map(asynchronousFileChannel -> Tuples.of(summaryResponse, asynchronousFileChannel));
-                                    }, 5
-                            )
-                            .groupBy(Tuple2::getT2)
-                            .flatMap(groupedFlux -> {
-                                AsynchronousFileChannel asynchronousFileChannel = groupedFlux.key();
-                                return groupedFlux.map(Tuple2::getT1)
-                                        .concatMap(summaryResponse -> {
-                                            return Mono.fromCallable(() -> {
-                                                        Context context = new Context();
-                                                        context.setVariable("summary", summaryResponse);
-                                                        return templateEngine.process("snippet", context);
-                                                    })
-                                                    .flatMapMany(lines -> {
-                                                        byte[] bytes = (lines + System.lineSeparator()).getBytes();
-                                                        DefaultDataBuffer wrap = factory.wrap(bytes);
-                                                        return Mono.fromCallable(asynchronousFileChannel::size)
-                                                                .flatMapMany(position -> DataBufferUtils.write(Mono.just(wrap),
-                                                                                asynchronousFileChannel,
-                                                                                position
-                                                                        )
-                                                                );
-                                                    })
-                                                    .then(Mono.defer(() -> {
-                                                        log.info("Write repository ({}) summary to file: {}.md",
-                                                                summaryResponse.getRepositoryName(),
-                                                                summaryResponse.getRepositoryType()
-                                                        );
-                                                        return Mono.just(summaryResponse.getRepositoryFullName());
-                                                    }));
+                            .concatMap(summaryResponse -> {
+                                return Mono.fromCallable(() -> {
+                                            Context context = new Context();
+                                            context.setVariable("summary", summaryResponse);
+                                            return templateEngine.process("snippet", context);
                                         })
-                                        .collectList()
-                                        .flatMap(repositoryFullNameList -> {
-                                            this.alreadySummarizedList.addAll(repositoryFullNameList);
-                                            String lines = repositoryFullNameList.stream()
-                                                    .collect(Collectors.joining(System.lineSeparator()));
-                                            byte[] bytes = lines.getBytes();
+                                        .flatMapMany(lines -> {
+                                            byte[] bytes = (lines + System.lineSeparator()).getBytes();
                                             DefaultDataBuffer wrap = factory.wrap(bytes);
-                                            return Mono.fromCallable(this.lockFileChannel::size)
+                                            return Mono.fromCallable(outputFileChannel::size)
                                                     .flatMapMany(position -> DataBufferUtils.write(Mono.just(wrap),
-                                                                    lockFileChannel,
+                                                                    outputFileChannel,
                                                                     position
                                                             )
-                                                    )
-                                                    .then(Mono.defer(() -> {
-                                                        log.info("Write lock file success: {}", repositoryFullNameList);
-                                                        return Mono.empty();
-                                                    }));
-                                        });
+                                                    );
+                                        })
+                                        .then(Mono.defer(() -> {
+                                            log.info("Write repository {} summary to file", summaryResponse.getRepositoryName());
+                                            return this.writeLockFile(summaryResponse.getRepositoryFullName());
+                                        }));
                             });
                 })
                 .then();
     }
 
+    private Mono<Void> writeLockFile(String repositoryFullName) {
+        return Mono.just(repositoryFullName)
+                .flatMap(name -> {
+                    this.alreadySummarizedList.add(repositoryFullName);
+                    byte[] bytes = (name + System.lineSeparator()).getBytes();
+                    DefaultDataBuffer wrap = factory.wrap(bytes);
+                    return Mono.fromCallable(this.lockFileChannel::size)
+                            .flatMapMany(position -> DataBufferUtils.write(Mono.just(wrap),
+                                            lockFileChannel,
+                                            position
+                                    )
+                            )
+                            .then(Mono.defer(() -> {
+                                log.info("Write lock file success: {}", repositoryFullName);
+                                return Mono.empty();
+                            }));
+                });
+    }
+
     @Override
     public void afterPropertiesSet() throws Exception {
         String userDir = System.getProperty("user.dir");
-        for (RepositoryType repositoryType : RepositoryType.values()) {
-            Predicate<String> predicate = new Predicate<>() {
-                @Override
-                public boolean test(String s) {
-                    return StringUtils.equalsAnyIgnoreCase(s, repositoryType.name()) || StringUtils.startsWithIgnoreCase(
-                            repositoryType.name(),
-                            s
-                    );
-                }
-            };
-            Path path = new File(userDir + File.separator + repositoryType.getFileName()).toPath();
-            AsynchronousFileChannel asyncChannel = AsynchronousFileChannel.open(
-                    path,
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.WRITE
+        Path outputFilePath = new File(userDir + File.separator + "documents/GitHubStars.md").toPath();
+        outputFileChannel = AsynchronousFileChannel.open(
+                outputFilePath,
+                StandardOpenOption.CREATE,
+                StandardOpenOption.WRITE
 //                    ,
 //                    StandardOpenOption.TRUNCATE_EXISTING
-            );
-            fileChannels.put(predicate, asyncChannel);
-        }
+        );
         File lockFile = new File(userDir + File.separator + "summary.lock");
         if (!lockFile.exists()) {
             lockFile.createNewFile();
@@ -233,14 +187,9 @@ public class GithubStarsSummaryEntrypoint implements InitializingBean, Disposabl
 
     @Override
     public void destroy() throws Exception {
-        fileChannels.forEach((k, v) -> {
-            try {
-                v.close();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        });
-        fileChannels.clear();
+        if (Objects.nonNull(outputFileChannel)) {
+            this.outputFileChannel.close();
+        }
         if (Objects.nonNull(lockFileChannel)) {
             this.lockFileChannel.close();
         }

@@ -2,21 +2,9 @@ I want you to act as a senior software engineer specializing in analyzing and do
 
 1. Generate a detailed summarization of the repository according to a specified JSON schema (SummaryResponse). Create the summary separately in both English and Chinese, ensuring clarity and completeness in both languages. The summarizedContent field in the result JSON must be formatted in markdown style and should include some key points presented as a list to highlight important features or aspects of the repository.
 2. Identify and clearly indicate the primary programming language(s) used in the repository.
-3. Determine the repository’s primary purpose by analyzing its content, categorizing it as one of the following:
-   1. **Application**: An application featuring an intuitive user interface that can be seamlessly operated in any operating systems, excluding embedded systems.
-   2. **JavaLanguageRelated**: Java developer related repository.
-   3. **RustLanguageRelated**: Rust developer related repository.
-   4. **MachineLearningRelated**: Repository using machine learning technology or for machine learning developers.
-   5. **AIRelated**: The AI/LLM/RAG/AGENTIC related repository.
-   6. **WebDevelopment**: The web developer related repository or for web development.
-   7. **MobileDevelopment**: Mobile development related for Android or iOS.
-   8. **Documentation**: The documentation repository including BOOK, COURSE, ARTICLE, LEARNING GUIDE, or any pure documented repository.
-   9. **DatabaseRelated**: The database related repository or SQL related repository.
-   10. **DataProcessing**: The data processing related repository or big data calculation related repository.
-   11. **Others**: The repository cannot be determined by previous items.
-4. Based on the summarization, programming language(s), and determined primary purpose, produce a concise, logically organized set of tags. The tags count should be between 1 and 10, starting from broad categories to specific subcategories. Avoid duplicates and ensure each tag meaningfully reflects the repository’s functionality, technology stack, domain, and features. Use fewer tags if appropriate.
-5. Format tag names using UpperCamelCase (e.g., `JavaLanguage`) with no spaces.
-6. Tags must be chosen only from this list below:
+3. Based on the summarization, programming language(s), and determined primary purpose, produce a concise, logically organized set of tags. The tags count should be between 1 and 10, starting from broad categories to specific subcategories. Avoid duplicates and ensure each tag meaningfully reflects the repository’s functionality, technology stack, domain, and features. Use fewer tags if appropriate.
+4. Format tag names using UpperCamelCase (e.g., `JavaLanguage`) with no spaces.
+5. Tags must be chosen only from this list below:
    1. **Web**: A system of interlinked documents and resources accessible via the internet, typically viewed through browsers.
    2. **UI**: User Interface, the visual and interactive elements through which users interact with software or devices.
    3. **Toolkit**: A collection of tools and libraries designed to facilitate software development or specific tasks.

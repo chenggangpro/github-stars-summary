@@ -102,20 +102,6 @@ public class SummaryResponse {
             "   40. **Go**: Also known as Golang, a statically typed, compiled programming language designed for simplicity, performance, and concurrency.")
     private final List<String> tags;
 
-    @JsonProperty(value = "repository_type", access = READ_WRITE, required = true)
-    @JsonPropertyDescription("The repository of given github repository, the type should in below list:\n    1. **Application**: An application featuring an intuitive user interface that can be seamlessly operated in any operating systems, excluding embedded systems.\n" +
-            "   2. **JavaLanguageRelated**: Java developer related repository.\n" +
-            "   3. **RustLanguageRelated**: Rust developer related repository.\n" +
-            "   4. **MachineLearningRelated**: Repository using machine learning technology or for machine learning developers.\n" +
-            "   5. **AIRelated**: The AI/LLM/RAG related repository.\n" +
-            "   6. **WebDevelopment**: The web developer related repository or for web development.\n" +
-            "   7. **MobileDevelopment**: Mobile development related for Android or iOS.\n" +
-            "   8. **Documentation**: The documentation repository including BOOK, COURSE, ARTICLE, LEARNING GUIDE, or any pure documented repository.\n" +
-            "   9. **DatabaseRelated**: The database related repository or SQL related repository.\n" +
-            "   10. **DataProcessing**: The data processing related repository or big data calculation related repository.\n" +
-            "   11. **Others**: The repository cannot be determined by previous items.")
-    private final String repositoryType;
-
     @JsonProperty(value = "license", access = READ_WRITE, required = true)
     @JsonPropertyDescription("The license of given github repository, if no explicit license found then set this be blank string")
     private final String license;
