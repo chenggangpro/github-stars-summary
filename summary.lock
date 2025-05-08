@@ -1120,7 +1120,8 @@ Rhythm-Byte/SchemaDiff
 arana-db/arana
 questdb/questdb
 Rustixir/darkbird
-vran-dev/databasirscalecube/reactor-aeron
+vran-dev/databasir
+scalecube/reactor-aeron
 mermaid-js/mermaid
 nocodb/nocodb
 excalidraw/excalidraw
