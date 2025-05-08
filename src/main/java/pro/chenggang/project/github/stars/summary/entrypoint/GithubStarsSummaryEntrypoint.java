@@ -61,10 +61,10 @@ public class GithubStarsSummaryEntrypoint implements InitializingBean, Disposabl
     private final LlmApi llmApi;
     private final TemplateEngine templateEngine;
 
-    public Mono<Void> summary(int limit) {
+    public Mono<Void> summary(int limit, int batchSize) {
         return gitHubApi.listStars(limit)
                 .filter(starsRepository -> !alreadySummarizedList.contains(starsRepository.getFullName()))
-                .buffer(5)
+                .buffer(batchSize)
                 .concatMap(buffered -> {
                     return Flux.fromIterable(buffered)
                             .flatMap(starsRepository -> {
@@ -97,18 +97,21 @@ public class GithubStarsSummaryEntrypoint implements InitializingBean, Disposabl
                                                                 return githubRepositoryInfoBuilder.build();
                                                             });
                                                 })
-                                                .flatMap(llmApi::summary);
-                                    }, 5
+                                                .flatMap(llmApi::summary)
+                                                .map(summaryResponse -> {
+                                                    return summaryResponse.toBuilder()
+                                                            .tags(summaryResponse.getTags().stream()
+                                                                    .map(value -> "#" + value)
+                                                                    .toList()
+                                                            )
+                                                            .repositoryName(starsRepository.getName())
+                                                            .repositoryFullName(starsRepository.getFullName())
+                                                            .repositoryUrl(starsRepository.getHtmlUrl().toString())
+                                                            .repositoryName("[" + summaryResponse.getRepositoryName() + "]")
+                                                            .build();
+                                                });
+                                    }, batchSize
                             )
-                            .map(summaryResponse -> {
-                                return summaryResponse.toBuilder()
-                                        .tags(summaryResponse.getTags().stream()
-                                                .map(value -> "#" + value)
-                                                .toList()
-                                        )
-                                        .repositoryName("[" + summaryResponse.getRepositoryName() + "]")
-                                        .build();
-                            })
                             .collectList();
                 })
                 .concatMap(summaryResponseList -> {
@@ -165,8 +168,8 @@ public class GithubStarsSummaryEntrypoint implements InitializingBean, Disposabl
                 outputFilePath,
                 StandardOpenOption.CREATE,
                 StandardOpenOption.WRITE
-//                    ,
-//                    StandardOpenOption.TRUNCATE_EXISTING
+                    ,
+                    StandardOpenOption.TRUNCATE_EXISTING
         );
         File lockFile = new File(userDir + File.separator + "summary.lock");
         if (!lockFile.exists()) {

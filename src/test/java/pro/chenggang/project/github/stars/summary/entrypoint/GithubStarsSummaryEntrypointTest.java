@@ -35,7 +35,7 @@ class GithubStarsSummaryEntrypointTest extends GithubStarsSummaryApplicationTest
 
     @Test
     void summary() {
-        githubStarsSummaryEntrypoint.summary(1)
+        githubStarsSummaryEntrypoint.summary(-1, 5)
                 .as(StepVerifier::create)
                 .verifyComplete();
     }
