@@ -114,7 +114,9 @@ public class SummaryResponse {
     @Builder
     @Jacksonized
     @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
-    @JsonClassDescription("The localized summarized content of given github repository in english and chinese. The summarization content should start with a full-description of given repository then add some key features output as a list. The content should be formatted in markdown style")
+    @JsonClassDescription("The localized summarized content of given github repository in english and chinese." +
+            " The summarization content should start with a full-description of given repository then add some key features output as a list. The content should be formatted in markdown style which line-header starts with '##' not '#'." +
+            " The summarization content JUST keep the localized summarized content in english and chinese without any other information")
     public static class SummarizedContent {
 
         @JsonProperty(value = "en", access = READ_WRITE, required = true)
