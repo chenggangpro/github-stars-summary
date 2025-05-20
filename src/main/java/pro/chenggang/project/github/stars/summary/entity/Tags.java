@@ -24,13 +24,13 @@ public enum Tags {
                     return true;
                 }
                 boolean onlyJavaFramework = tags.stream()
-                        .allMatch(tag -> equalsAnyIgnoreCase(tag, "java", "toolkit", "software", "Framework"));
+                        .allMatch(tag -> equalsAnyIgnoreCase(tag, "java", "toolkit", "software", "Framework","Spring"));
                 if (onlyJavaFramework) {
                     return true;
                 }
                 boolean anyJava = tags.stream().anyMatch(tag -> equalsAnyIgnoreCase(tag, "java", "JavaLanguage"));
                 boolean anyLibrary = tags.stream()
-                        .anyMatch(tag -> equalsAnyIgnoreCase(tag, "dependency", "dependencies", "library", "framework"));
+                        .anyMatch(tag -> equalsAnyIgnoreCase(tag, "dependency", "dependencies", "library", "framework","Spring","Spring Boot","Spring Cloud"));
                 return anyJava && anyLibrary;
             },
             "/documents/1.JavaLanguage.md"
