@@ -172,8 +172,8 @@ public class GithubStarsSummaryEntrypoint implements InitializingBean, Disposabl
                                                 return this.writeLockFile(summaryResponse.getRepositoryFullName());
                                             }))
                                             .then(Mono.defer(() -> {
-                                                String logContent = StringUtils.rightPad(filePath,
-                                                        35,
+                                                String logContent = StringUtils.rightPad(filePath + "("+summaryResponse.getRepositoryName()+")",
+                                                        50,
                                                         ""
                                                 ) + "<===> " + summaryResponse.getTags() + System.lineSeparator();
                                                 DefaultDataBuffer wrap = factory.wrap(logContent.getBytes());
